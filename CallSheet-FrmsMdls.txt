@@ -2218,12 +2218,6 @@ End Function
 '             LICENCE: GNU GENERAL PUBLIC LICENSE v3
 '========================================================================
 '
-'  Asset Manager is designed to facilitate device management (inventory,
-'   location-tracking, status, etc) of non-dispoasble devices used in a
-'   clinical setting such as the Operating Theatre or Post-Op Recovery.
-'   This is done through the use of an Excel Spreadsheet for data storage
-'   and VBA forms to manage that data.
-'
 '  Terms of GPL v3 licence:
 '  This program is free software: you can redistribute it and/or modify
 '   it under the terms of the GNU General Public License as published by
