@@ -1,0 +1,2247 @@
+'==================================================================================
+'                          Main Call Sheet Form
+'==================================================================================
+
+Option Explicit
+Private psScrub, psScout, psAnaes, psOTA, psPACU As String
+Private psScrub2, psScout2, psAnaes2, psOTA2, psPACU2 As String
+Private psRowScr, psRowSco, psRowAna, psRowPac, psRowOta As String
+Private psRowScr2, psRowSco2, psRowAna2, psRowPac2, psRowOta2 As String
+Private psDate, psCurRow, psAppPath As String
+Private pnRecCnt As Integer
+Private pbNewEntry, pbUnhide, pbSwapNames As Boolean
+
+
+'==================================================================================
+' Application.......: Operating Theatre Call Sheet (Overtime Calculator)
+'                     (Forms: Call Sheet / Add-Edit Staff)
+' Developed By......: Robyn Hahn
+' Version...........: 0.6
+' Revision Date.....: 18.11.05
+'  [ See below - end of code - for description and licence ]
+'========================================================================
+
+Private Sub UserForm_Activate()
+  With Me
+    Application.ScreenUpdating = False
+    .nRecCnt = MdlF.ColumnCnt("NamesPhones", 1)
+    Call .DoFillCombos
+    .sDate = Format(Date, "'dd/mm/yyyy")
+    .TxtdDate = .sDate
+    .bUnHide = False
+    .sAppPath = ThisWorkbook.Path
+    Application.ScreenUpdating = True
+  End With
+End Sub
+
+
+' ==============================================================
+Private Sub CmdAddStaff_Click()
+  FrmAddStaff.Show
+  
+  ' after AddStaff is closed, redo the Frm_Activate()
+  With Me
+    .nRecCnt = MdlF.ColumnCnt("NamesPhones", 1)
+    Call .DoFillCombos
+  End With
+  ThisWorkbook.Sheets("CallSheet").Select
+End Sub
+
+Private Sub CmdClear_Click()
+  Call Me.DoClearFields("Clear")
+End Sub
+
+Private Sub CmdSave_Click()
+  Call Me.DoSave
+End Sub
+
+Private Sub CmdCancel_Click()
+  ThisWorkbook.Sheets("CallSheet").Select
+  Call Me.DoClearFields("Cancel")
+End Sub
+
+Private Sub CmdcfHelp_Click()
+  If Not MdlF.bHtmlHelp(Me.sAppPath, "OnCall.html") Then MdlF.sHTMLError
+End Sub
+
+Private Sub CmdClose_Click()
+  With ThisWorkbook
+    If Me.bUnHide Then
+      .Sheets("NamesPhones").Visible = True
+      .Sheets("CallHistory").Visible = True
+      .Sheets("Lists").Visible = True
+      .Sheets("FrmBak").Visible = True
+      .Sheets("DBBak").Visible = True
+    Else
+      .Sheets("NamesPhones").Visible = xlVeryHidden
+      .Sheets("CallHistory").Visible = xlVeryHidden
+      .Sheets("Lists").Visible = xlVeryHidden
+      .Sheets("FrmBak").Visible = xlVeryHidden
+      .Sheets("DBBak").Visible = xlVeryHidden
+      .Sheets("CallSheet").Select
+    End If
+  End With
+  Unload Me
+End Sub
+
+Private Sub Spintime_SpinUp()
+  With Me
+    If Mid(.TxtdDate, 1, 1) = "'" Then .TxtdDate = Mid(.TxtdDate, 2)
+    .TxtdDate = Format(CDate(.TxtdDate) + 1, "'dd/mm/yyyy")
+    .sDate = .TxtdDate
+  End With
+End Sub
+Private Sub Spintime_SpinDown()
+  With Me
+    If Mid(.TxtdDate, 1, 1) = "'" Then .TxtdDate = Mid(.TxtdDate, 2)
+    .TxtdDate = Format(CDate(.TxtdDate) - 1, "'dd/mm/yyyy")
+    .sDate = .TxtdDate
+  End With
+End Sub
+
+Private Sub ChkFirstName_Click()
+  Me.bSwapNames = IIf(Me.ChkFirstName, True, False)
+  Call Me.DoFillCombos
+End Sub
+' ==============================================================
+
+
+
+' ==============================================================
+Private Sub CboScrub_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  Me.ChkFirstName.Enabled = Me.bSwapEnable
+  If Len(Me.CboScrub) = 0 Then Call Me.DoClearFields("SCRUB"): Exit Sub
+  
+  With Me
+    Dim sFindStr As String
+    sFindStr = IIf(.bSwapNames, MdlF.sNameSwap(.CboScrub, "SWAP"), .CboScrub)
+    .sRowScr = Trim(MdlF.sRecNum(sFindStr))
+    If Len(.sRowScr) > 0 Then
+      If .DoEditAccept(.CboScrub, "CboScrub") Then
+        Call .DoPhones(.TxtHScrub, .TxtMScrub, .sRowScr)
+        Call MdlF.DoColourField(.CboScrub, True)
+      Else
+        Call MdlF.DoColourField(.CboScrub, False)
+      End If
+    End If
+  End With
+End Sub
+Private Sub CboScout_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  Me.ChkFirstName.Enabled = Me.bSwapEnable
+  If Len(Me.CboScout) = 0 Then Call Me.DoClearFields("SCOUT"): Exit Sub
+  
+  With Me
+    Dim sFindStr As String
+    sFindStr = IIf(.bSwapNames, MdlF.sNameSwap(.CboScout, "SWAP"), .CboScout)
+    .sRowSco = Trim(MdlF.sRecNum(sFindStr))
+    If Len(.sRowSco) > 0 Then
+      If .DoEditAccept(.CboScout, "CboScout") Then
+        Call .DoPhones(.TxtHScout, .TxtMScout, .sRowSco)
+        Call MdlF.DoColourField(.CboScout, True)
+      Else
+        Call MdlF.DoColourField(.CboScout, False)
+      End If
+    End If
+  End With
+End Sub
+Private Sub CboAnaes_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  Me.ChkFirstName.Enabled = Me.bSwapEnable
+  If Len(Me.CboAnaes) = 0 Then Call Me.DoClearFields("ANAES"): Exit Sub
+  
+  With Me
+    Dim sFindStr As String
+    sFindStr = IIf(.bSwapNames, MdlF.sNameSwap(.CboAnaes, "SWAP"), .CboAnaes)
+    .sRowAna = Trim(MdlF.sRecNum(sFindStr))
+    If Len(.sRowAna) > 0 Then
+      If .DoEditAccept(.CboAnaes, "CboAnaes") Then
+        Call .DoPhones(.TxtHAnaes, .TxtMAnaes, .sRowAna)
+        Call MdlF.DoColourField(.CboAnaes, True)
+      Else
+        Call MdlF.DoColourField(.CboAnaes, False)
+      End If
+    End If
+  End With
+End Sub
+Private Sub CboPACU_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  Me.ChkFirstName.Enabled = Me.bSwapEnable
+  If Len(Me.CboPACU) = 0 Then Call Me.DoClearFields("PACU"): Exit Sub
+  
+  With Me
+    Dim sFindStr As String
+    sFindStr = IIf(.bSwapNames, MdlF.sNameSwap(.CboPACU, "SWAP"), .CboPACU)
+    .sRowPac = Trim(MdlF.sRecNum(sFindStr))
+    If Len(.sRowPac) > 0 Then
+      If .DoEditAccept(.CboPACU, "CboPACU") Then
+        Call .DoPhones(.TxtHPACU, .TxtMPACU, .sRowPac)
+        Call MdlF.DoColourField(.CboPACU, True)
+      Else
+        Call MdlF.DoColourField(.CboPACU, False)
+      End If
+    End If
+  End With
+End Sub
+Private Sub CboOTA_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  Me.ChkFirstName.Enabled = Me.bSwapEnable
+  If Len(Me.CboOTA) = 0 Then Call Me.DoClearFields("OTA"): Exit Sub
+  
+  With Me
+    Dim sFindStr As String
+    sFindStr = IIf(.bSwapNames, MdlF.sNameSwap(.CboOTA, "SWAP"), .CboOTA)
+    .sRowOta = Trim(MdlF.sRecNum(sFindStr))
+    If Len(.sRowOta) > 0 Then
+      If .DoEditAccept(.CboOTA, "CboOTA") Then
+        Call .DoPhones(.TxtHOTA, .TxtMOTA, .sRowOta)
+        Call MdlF.DoColourField(.CboOTA, True)
+      Else
+        Call MdlF.DoColourField(.CboOTA, False)
+      End If
+    End If
+  End With
+End Sub
+Private Sub CboScrub2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  Me.ChkFirstName.Enabled = Me.bSwapEnable
+  If Len(Me.CboScrub2) = 0 Then Call Me.DoClearFields("2SCRUB"): Exit Sub
+  
+  With Me
+    Dim sFindStr As String
+    sFindStr = IIf(.bSwapNames, MdlF.sNameSwap(.CboScrub2, "SWAP"), .CboScrub2)
+    .sRowScr2 = Trim(MdlF.sRecNum(sFindStr))
+    If Len(.sRowScr2) > 0 Then
+      If .DoEditAccept(.CboScrub2, "CboScrub2") Then
+        Call .DoPhones(.TxtHScrub2, .TxtMScrub2, .sRowScr2)
+        Call MdlF.DoColourField(.CboScrub2, True)
+      Else
+        Call MdlF.DoColourField(.CboScrub2, False)
+      End If
+    End If
+  End With
+End Sub
+Private Sub CboScout2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  Me.ChkFirstName.Enabled = Me.bSwapEnable
+  If Len(Me.CboScout2) = 0 Then Call Me.DoClearFields("2SCOUT"): Exit Sub
+  
+  With Me
+    Dim sFindStr As String
+    sFindStr = IIf(.bSwapNames, MdlF.sNameSwap(.CboScout2, "SWAP"), .CboScout2)
+    .sRowSco2 = Trim(MdlF.sRecNum(sFindStr))
+    If Len(.sRowSco2) > 0 Then
+      If .DoEditAccept(.CboScout2, "CboScout2") Then
+        Call .DoPhones(.TxtHScout2, .TxtMScout2, .sRowSco2)
+        Call MdlF.DoColourField(.CboScout2, True)
+      Else
+        Call MdlF.DoColourField(.CboScout2, False)
+      End If
+    End If
+  End With
+End Sub
+Private Sub CboAnaes2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  Me.ChkFirstName.Enabled = Me.bSwapEnable
+  If Len(Me.CboAnaes2) = 0 Then Call Me.DoClearFields("2ANAES"): Exit Sub
+  
+  With Me
+    Dim sFindStr As String
+    sFindStr = IIf(.bSwapNames, MdlF.sNameSwap(.CboAnaes2, "SWAP"), .CboAnaes2)
+    .sRowAna2 = Trim(MdlF.sRecNum(sFindStr))
+    If Len(.sRowAna2) > 0 Then
+      If .DoEditAccept(.CboAnaes2, "CboAnaes2") Then
+        Call .DoPhones(.TxtHAnaes2, .TxtMAnaes2, .sRowAna2)
+        Call MdlF.DoColourField(.CboAnaes2, True)
+      Else
+        Call MdlF.DoColourField(.CboAnaes2, False)
+      End If
+    End If
+  End With
+End Sub
+Private Sub CboPACU2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  Me.ChkFirstName.Enabled = Me.bSwapEnable
+  If Len(Me.CboPACU2) = 0 Then Call Me.DoClearFields("2PACU"): Exit Sub
+  
+  With Me
+    Dim sFindStr As String
+    sFindStr = IIf(.bSwapNames, MdlF.sNameSwap(.CboPACU2, "SWAP"), .CboPACU2)
+    .sRowPac2 = Trim(MdlF.sRecNum(sFindStr))
+    If Len(.sRowPac2) > 0 Then
+      If .DoEditAccept(.CboPACU2, "CboPACU2") Then
+        Call .DoPhones(.TxtHPACU2, .TxtMPACU2, .sRowPac2)
+        Call MdlF.DoColourField(.CboPACU2, True)
+      Else
+        Call MdlF.DoColourField(.CboPACU2, False)
+      End If
+    End If
+  End With
+End Sub
+Private Sub CboOTA2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  Me.ChkFirstName.Enabled = Me.bSwapEnable
+  If Len(Me.CboOTA2) = 0 Then Call Me.DoClearFields("2OTA"): Exit Sub
+  
+  With Me
+    Dim sFindStr As String
+    sFindStr = IIf(.bSwapNames, MdlF.sNameSwap(.CboOTA2, "SWAP"), .CboOTA2)
+    .sRowOta2 = Trim(MdlF.sRecNum(sFindStr))
+    If Len(.sRowOta2) > 0 Then
+      If .DoEditAccept(.CboOTA2, "CboOTA2") Then
+        Call .DoPhones(.TxtHOTA2, .TxtMOTA2, .sRowOta2)
+        Call MdlF.DoColourField(.CboOTA2, True)
+      Else
+        Call MdlF.DoColourField(.CboOTA2, False)
+      End If
+    End If
+  End With
+End Sub
+
+Private Sub TxtHScrub_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHScrub) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtHScrub, Trim(Me.sRowScr), "B")
+End Sub
+Private Sub TxtHScout_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHScout) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtHScout, Trim(Me.sRowSco), "B")
+End Sub
+Private Sub TxtHAnaes_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHAnaes) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtHAnaes, Trim(Me.sRowAna), "B")
+End Sub
+Private Sub TxtHPACU_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHPACU) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtHPACU, Trim(Me.sRowPac), "B")
+End Sub
+Private Sub TxtHOTA_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHOTA) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtHOTA, Trim(Me.sRowOta), "B")
+End Sub
+
+Private Sub TxtMScrub_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHScrub) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtMScrub, Trim(Str(Me.sRowScr)), "C")
+End Sub
+Private Sub TxtMScout_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHScout) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtMScout, Trim(Str(Me.sRowSco)), "C")
+End Sub
+Private Sub TxtMAnaes_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHAnaes) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtMAnaes, Trim(Str(Me.sRowAna)), "C")
+End Sub
+Private Sub TxtMPACU_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHPACU) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtMPACU, Trim(Str(Me.sRowPac)), "C")
+End Sub
+Private Sub TxtMOTA_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHOTA) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtMOTA, Trim(Str(Me.sRowOta)), "C")
+End Sub
+
+
+Private Sub TxtHScrub2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHScrub2) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtHScrub2, Trim(Me.sRowScr2), "B")
+End Sub
+Private Sub TxtHScout2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHScout2) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtHScout2, Trim(Me.sRowSco2), "B")
+End Sub
+Private Sub TxtHAnaes2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHAnaes2) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtHAnaes2, Trim(Me.sRowAna2), "B")
+End Sub
+Private Sub TxtHPACU2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHPACU2) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtHPACU2, Trim(Me.sRowPac2), "B")
+End Sub
+Private Sub TxtHOTA2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHOTA2) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtHOTA2, Trim(Me.sRowOta2), "B")
+End Sub
+Private Sub TxtMScrub2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHScrub2) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtMScrub2, Trim(Str(Me.sRowScr2)), "C")
+End Sub
+Private Sub TxtMScout2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHScout2) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtMScout2, Trim(Str(Me.sRowSco2)), "C")
+End Sub
+Private Sub TxtMAnaes2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHAnaes2) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtMAnaes2, Trim(Str(Me.sRowAna2)), "C")
+End Sub
+Private Sub TxtMPACU2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHPACU2) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtMPACU2, Trim(Str(Me.sRowPac2)), "C")
+End Sub
+Private Sub TxtMOTA2_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If Len(Me.TxtHOTA2) = 0 Then Exit Sub
+
+  'Call Me.DoEditEnable(Me.TxtMOTA2, Trim(Str(Me.sRowOta2)), "C")
+End Sub
+' ==============================================================
+
+
+' ==============================================================
+Public Sub DoClearFields(sCalledBy)
+  If sCalledBy = "Cancel" Then
+    Dim vbN As String
+    vbN = vbNullString
+    With Me
+      .CboScrub.Text = vbN: .TxtHScrub.Text = vbN: .TxtMScrub.Text = vbN
+      .CboScout.Text = vbN: .TxtHScout.Text = vbN: .TxtMScout.Text = vbN
+      .CboAnaes.Text = vbN: .TxtHAnaes.Text = vbN: .TxtMAnaes.Text = vbN
+      .CboPACU.Text = vbN: .TxtHPACU.Text = vbN: .TxtMPACU.Text = vbN
+      .CboOTA.Text = vbN: .TxtHOTA.Text = vbN: .TxtMOTA.Text = vbN
+      .CboScrub2.Text = vbN: .TxtHScrub2.Text = vbN: .TxtMScrub2.Text = vbN
+      .CboScout2.Text = vbN: .TxtHScout2.Text = vbN: .TxtMScout2.Text = vbN
+      .CboAnaes2.Text = vbN: .TxtHAnaes2.Text = vbN: .TxtMAnaes2.Text = vbN
+      .CboPACU2.Text = vbN: .TxtHPACU2.Text = vbN: .TxtMPACU2.Text = vbN
+      .CboOTA2.Text = vbN: .TxtHOTA2.Text = vbN: .TxtMOTA2.Text = vbN
+    End With
+  End If
+
+  If sCalledBy = "SCRUB" Then Me.TxtHScrub.Text = vbN: Me.TxtMScrub.Text = vbN
+  If sCalledBy = "SCOUT" Then Me.TxtHScout.Text = vbN: Me.TxtMScout.Text = vbN
+  If sCalledBy = "ANAES" Then Me.TxtHAnaes.Text = vbN: Me.TxtMAnaes.Text = vbN
+  If sCalledBy = "PACU" Then Me.TxtHPACU.Text = vbN: Me.TxtMPACU.Text = vbN
+  If sCalledBy = "OTA" Then Me.TxtHOTA.Text = vbN: Me.TxtMOTA.Text = vbN
+  If sCalledBy = "2SCRUB" Then Me.TxtHScrub2.Text = vbN: Me.TxtMScrub2.Text = vbN
+  If sCalledBy = "2SCOUT" Then Me.TxtHScout2.Text = vbN: Me.TxtMScout2.Text = vbN
+  If sCalledBy = "2ANAES" Then Me.TxtHAnaes2.Text = vbN: Me.TxtMAnaes2.Text = vbN
+  If sCalledBy = "2PACU" Then Me.TxtHPACU2.Text = vbN: Me.TxtMPACU2.Text = vbN
+  If sCalledBy = "2OTA" Then Me.TxtHOTA2.Text = vbN: Me.TxtMOTA2.Text = vbN
+
+
+  If sCalledBy = "Clear" Then
+    Dim oSheet As Worksheet, sMT As String
+  '    If Len(MdlF.savValid(Me)) > 0 Then Exit Sub
+    
+      Set oSheet = Worksheets("CallSheet")
+      sMT = ""
+      With oSheet
+        .Range("J4").value = sMT
+        .Range("D12").value = sMT: .Range("G12").value = sMT: .Range("I12").value = sMT
+        .Range("D13").value = sMT: .Range("G13").value = sMT: .Range("I13").value = sMT
+        .Range("D14").value = sMT: .Range("G14").value = sMT: .Range("I14").value = sMT
+        .Range("D15").value = sMT: .Range("G15").value = sMT: .Range("I15").value = sMT
+        .Range("D16").value = sMT: .Range("G16").value = sMT: .Range("I16").value = sMT
+        .Range("D18").value = sMT: .Range("G18").value = sMT: .Range("I18").value = sMT
+        .Range("D19").value = sMT: .Range("G19").value = sMT: .Range("I19").value = sMT
+        .Range("D20").value = sMT: .Range("G20").value = sMT: .Range("I20").value = sMT
+        .Range("D21").value = sMT: .Range("G21").value = sMT: .Range("I21").value = sMT
+        .Range("D22").value = sMT: .Range("G22").value = sMT: .Range("I22").value = sMT
+        .Range("B20:B42").value = sMT
+        .Range("F20:H42").value = sMT
+        .Range("C129:C151").value = sMT
+      End With
+      Set oSheet = Nothing
+  End If
+End Sub
+
+Public Sub DoFillCombos()
+  Dim vbN As String
+  vbN = vbNullString
+  
+  With Me
+    ' preserve the existing entries in cboBoxes - save names
+    If Len(.CboScrub) > 1 Then .sScrub = .CboScrub
+    If Len(.CboScout) > 1 Then .sScout = .CboScout
+    If Len(.CboAnaes) > 1 Then .sAnaes = .CboAnaes
+    If Len(.CboPACU) > 1 Then .sPACU = .CboPACU
+    If Len(.CboOTA) > 1 Then .sOTA = .CboOTA
+    If Len(.CboScrub2) > 1 Then .sScrub2 = .CboScrub2
+    If Len(.CboScout2) > 1 Then .sScout2 = .CboScout2
+    If Len(.CboAnaes2) > 1 Then .sAnaes2 = .CboAnaes2
+    If Len(.CboPACU2) > 1 Then .sPACU2 = .CboPACU2
+    If Len(.CboOTA2) > 1 Then .sOTA2 = .CboOTA2
+    ' refill comboLists, will blank out entries in cbos
+    Call MdlF.fillCbos(.CboScrub, "D")
+    Call MdlF.fillCbos(.CboScout, "D")
+    Call MdlF.fillCbos(.CboAnaes, "E")
+    Call MdlF.fillCbos(.CboPACU, "F")
+    Call MdlF.fillCbos(.CboOTA, "G")
+    Call MdlF.fillCbos(.CboScrub2, "D")
+    Call MdlF.fillCbos(.CboScout2, "D")
+    Call MdlF.fillCbos(.CboAnaes2, "E")
+    Call MdlF.fillCbos(.CboPACU2, "F")
+    Call MdlF.fillCbos(.CboOTA2, "G")
+    ' restore entries
+    .CboScrub = IIf(Len(.sScrub) > 0, .sScrub, vbN)
+    .CboScout = IIf(Len(.sScout) > 0, .sScout, vbN)
+    .CboAnaes = IIf(Len(.sAnaes) > 0, .sAnaes, vbN)
+    .CboPACU = IIf(Len(.sPACU) > 0, .sPACU, vbN)
+    .CboOTA = IIf(Len(.sOTA) > 0, .sOTA, vbN)
+    .CboScrub2 = IIf(Len(.sScrub2) > 0, .sScrub2, vbN)
+    .CboScout2 = IIf(Len(.sScout2) > 0, .sScout2, vbN)
+    .CboAnaes2 = IIf(Len(.sAnaes2) > 0, .sAnaes2, vbN)
+    .CboPACU2 = IIf(Len(.sPACU2) > 0, .sPACU2, vbN)
+    .CboOTA2 = IIf(Len(.sOTA2) > 0, .sOTA2, vbN)
+  End With
+End Sub
+
+Public Sub DoSave()
+  Dim oSheet As Worksheet, nTgl As Integer, sAddComma As String
+  Dim s_Row As String, MissingStaff As String, sHdrMsg As String
+  
+  MissingStaff = MdlF.savValid(Me)
+  If Len(MissingStaff) > 0 Then
+    MsgBox ("No name has been entered for " & MissingStaff & ", sheet" & _
+            " will be incomplete.")
+    ' Exit Sub: commented out to allow saves despite incomplete record
+  End If
+
+  Set oSheet = Worksheets("CallSheet")
+  Me.sDate = Me.TxtdDate
+  sAddComma = "SAVE"
+  ' sHdrMsg = IIf(Me.bSwapNames, "surname", "given name")
+  With oSheet
+    .Range("J4").value = Me.sDate
+    .Range("D12").value = MdlF.sNameSwap(Me.CboScrub, sAddComma)
+    .Range("G12").value = Me.TxtHScrub
+    .Range("I12").value = Me.TxtMScrub
+    .Range("D13").value = MdlF.sNameSwap(Me.CboScout, sAddComma)
+    .Range("G13").value = Me.TxtHScout
+    .Range("I13").value = Me.TxtMScout
+    .Range("D14").value = MdlF.sNameSwap(Me.CboAnaes, sAddComma)
+    .Range("G14").value = Me.TxtHAnaes
+    .Range("I14").value = Me.TxtMAnaes
+    .Range("D15").value = MdlF.sNameSwap(Me.CboOTA, sAddComma)
+    .Range("G15").value = Me.TxtHOTA
+    .Range("I15").value = Me.TxtMOTA
+    .Range("D16").value = MdlF.sNameSwap(Me.CboPACU, sAddComma)
+    .Range("G16").value = Me.TxtHPACU
+    .Range("I16").value = Me.TxtMPACU
+    .Range("D18").value = MdlF.sNameSwap(Me.CboScrub2, sAddComma)
+    .Range("G18").value = Me.TxtHScrub2
+    .Range("I18").value = Me.TxtMScrub2
+    .Range("D19").value = MdlF.sNameSwap(Me.CboScout2, sAddComma)
+    .Range("G19").value = Me.TxtHScout2
+    .Range("I19").value = Me.TxtMScout2
+    .Range("D20").value = MdlF.sNameSwap(Me.CboAnaes2, sAddComma)
+    .Range("G20").value = Me.TxtHAnaes2
+    .Range("I20").value = Me.TxtMAnaes2
+    .Range("D21").value = MdlF.sNameSwap(Me.CboOTA2, sAddComma)
+    .Range("G21").value = Me.TxtHOTA2
+    .Range("I21").value = Me.TxtMOTA2
+    .Range("D22").value = MdlF.sNameSwap(Me.CboPACU2, sAddComma)
+    .Range("G22").value = Me.TxtHPACU2
+    .Range("I22").value = Me.TxtMPACU2
+  End With
+  
+  ' Call History
+  Set oSheet = Worksheets("CallHistory")
+  Me.bNewEntry = MdlF.ChkRec(Me.sDate)
+  If Me.bNewEntry Then
+    oSheet.Select: oSheet.Rows("3:3").Select: s_Row = "3"
+    Selection.Insert Shift:=xlDown
+  Else
+    nTgl = MsgBox("This record already exists... overwrite?", vbOKCancel)
+    If nTgl = 2 Then Exit Sub
+  End If
+  With oSheet
+    .Range("A" & s_Row).value = Me.sDate
+    .Range("B" & s_Row).value = Me.CboScrub
+    .Range("C" & s_Row).value = Me.CboScout
+    .Range("D" & s_Row).value = Me.CboAnaes
+    .Range("E" & s_Row).value = Me.CboOTA
+    .Range("F" & s_Row).value = Me.CboPACU
+    .Range("G" & s_Row).value = Me.CboScrub2
+    .Range("H" & s_Row).value = Me.CboScout2
+    .Range("I" & s_Row).value = Me.CboAnaes2
+    .Range("J" & s_Row).value = Me.CboOTA2
+    .Range("K" & s_Row).value = Me.CboPACU2
+  End With
+  Set oSheet = Worksheets("CallSheet"): oSheet.Select
+  Set oSheet = Nothing
+End Sub
+
+Public Sub DoPhones(oHome As Control, oMob As Control, sRec As String)
+  Dim sRow As String
+  Dim oSheet As Worksheet
+  
+  If sRec = "None Found" Then Exit Sub
+  If Len(Trim(sRec)) = 0 Then Exit Sub
+  
+  Set oSheet = Worksheets("NamesPhones")
+  Application.ScreenUpdating = False
+  sRow = Trim(sRec)
+  oHome = oSheet.Range("B" & sRow).value
+  oMob = oSheet.Range("C" & sRow).value
+  
+  Application.ScreenUpdating = True
+  Set oSheet = Nothing
+End Sub
+
+Public Function DoEditAccept(sChkVal As String, sCtrlName As String) As Boolean
+  ' for now, allow one OTA to cover both 1st and 2nd call
+  If Mid(sCtrlName, 1, 6) = "CboOTA" Then DoEditAccept = True: Exit Function
+
+  Dim ctrl As Control
+  For Each ctrl In Me.Controls
+    If TypeName(ctrl) = "ComboBox" Then
+      If ctrl.Name = sCtrlName Then
+        ' MsgBox sChkVal
+        ' Pass
+      Else
+        If Len(ctrl) > 0 Then
+          If ctrl = sChkVal Then
+            MsgBox sChkVal & " has already been selected..."
+            DoEditAccept = False
+            Exit For
+          End If
+        End If
+      End If
+      DoEditAccept = True
+    End If
+  Next
+End Function
+
+Public Function bSwapEnable() As Boolean
+  With Me
+    If Len(Trim(.CboScrub.Text)) > 0 Or _
+     Len(Trim(.CboScout.Text)) > 0 Or _
+     Len(Trim(.CboAnaes.Text)) > 0 Or _
+     Len(Trim(.CboPACU.Text)) > 0 Or _
+     Len(Trim(.CboOTA.Text)) > 0 Or _
+     Len(Trim(.CboScrub2.Text)) > 0 Or _
+     Len(Trim(.CboScout2.Text)) > 0 Or _
+     Len(Trim(.CboAnaes2.Text)) > 0 Or _
+     Len(Trim(.CboPACU2.Text)) > 0 Or _
+     Len(Trim(.CboOTA2.Text)) > 0 Then
+      bSwapEnable = False
+    Else
+      bSwapEnable = True
+    End If
+  End With
+End Function
+' ==============================================================
+
+' ===============================================================
+' Sorts the NamesPhones list... returns a .F. (because it does
+' not get set to anything), which value is assigned to bNewEntry
+' ===============================================================
+Public Function asSheetSort() As Boolean
+Dim onecol As Integer, twocol As Integer, lstrow, lstcol
+
+With Sheets("NamesPhones")
+  .Activate
+  .AutoFilterMode = False
+
+  ' Get the last used row and cell of the worksheet
+  lstrow = .Cells.SpecialCells(xlCellTypeLastCell).Row
+  lstcol = .Cells.SpecialCells(xlCellTypeLastCell).Column
+
+  onecol = 1
+  twocol = 2
+
+  If onecol > lstcol Or twocol > lstcol Then
+    Call MsgBox("The sort range does not include the sort columns", vbOKOnly)
+    Exit Function
+  End If
+
+  Range(Cells(1, 1), Cells(lstrow, lstcol)).Sort _
+        Key1:=.Columns(onecol), Order1:=xlAscending, _
+        Key2:=.Columns(twocol), Order2:=xlAscending, Header:=xlYes
+End With
+End Function
+
+
+'========================================================================
+'      Forms-wide Get|Let Properties (replaces global vars)
+'========================================================================
+Public Property Get sScrub() As String
+  sScrub = psScrub
+End Property
+Public Property Let sScrub(lsScrub As String)
+  psScrub = lsScrub
+End Property
+Public Property Get sScout() As String
+  sScout = psScout
+End Property
+Public Property Let sScout(lsScout As String)
+  psScout = lsScout
+End Property
+Public Property Get sAnaes() As String
+  sAnaes = psAnaes
+End Property
+Public Property Let sAnaes(lsAnaes As String)
+  psAnaes = lsAnaes
+End Property
+Public Property Get sOTA() As String
+  sOTA = psOTA
+End Property
+Public Property Let sOTA(lsOTA As String)
+  psOTA = lsOTA
+End Property
+Public Property Get sPACU() As String
+  sPACU = psPACU
+End Property
+Public Property Let sPACU(lsPACU As String)
+  psPACU = lsPACU
+End Property
+
+Public Property Get sScrub2() As String
+  sScrub2 = psScrub2
+End Property
+Public Property Let sScrub2(lsScrub2 As String)
+  psScrub2 = lsScrub2
+End Property
+Public Property Get sScout2() As String
+  sScout2 = psScout2
+End Property
+Public Property Let sScout2(lsScout2 As String)
+  psScout2 = lsScout2
+End Property
+Public Property Get sAnaes2() As String
+  sAnaes2 = psAnaes2
+End Property
+Public Property Let sAnaes2(lsAnaes2 As String)
+  psAnaes2 = lsAnaes2
+End Property
+Public Property Get sOTA2() As String
+  sOTA2 = psOTA2
+End Property
+Public Property Let sOTA2(lsOTA2 As String)
+  psOTA2 = lsOTA2
+End Property
+Public Property Get sPACU2() As String
+  sPACU2 = psPACU2
+End Property
+Public Property Let sPACU2(lsPACU2 As String)
+  psPACU2 = lsPACU2
+End Property
+
+
+Public Property Get sDate() As String
+  sDate = psDate
+End Property
+Public Property Let sDate(lsDate As String)
+  psDate = lsDate
+End Property
+
+Public Property Get sRowScr() As String
+  sRowScr = psRowScr
+End Property
+Public Property Let sRowScr(lsRowScr As String)
+  psRowScr = lsRowScr
+End Property
+Public Property Get sRowSco() As String
+  sRowSco = psRowSco
+End Property
+Public Property Let sRowSco(lsRowSco As String)
+  psRowSco = lsRowSco
+End Property
+Public Property Get sRowAna() As String
+  sRowAna = psRowAna
+End Property
+Public Property Let sRowAna(lsRowAna As String)
+  psRowAna = lsRowAna
+End Property
+Public Property Get sRowPac() As String
+  sRowPac = psRowPac
+End Property
+Public Property Let sRowPac(lsRowPac As String)
+  psRowPac = lsRowPac
+End Property
+Public Property Get sRowOta() As String
+  sRowOta = psRowOta
+End Property
+Public Property Let sRowOta(lsRowOta As String)
+  psRowOta = lsRowOta
+End Property
+
+Public Property Get sRowScr2() As String
+  sRowScr2 = psRowScr2
+End Property
+Public Property Let sRowScr2(lsRowScr2 As String)
+  psRowScr2 = lsRowScr2
+End Property
+Public Property Get sRowSco2() As String
+  sRowSco2 = psRowSco2
+End Property
+Public Property Let sRowSco2(lsRowSco2 As String)
+  psRowSco2 = lsRowSco2
+End Property
+Public Property Get sRowAna2() As String
+  sRowAna2 = psRowAna2
+End Property
+Public Property Let sRowAna2(lsRowAna2 As String)
+  psRowAna2 = lsRowAna2
+End Property
+Public Property Get sRowPac2() As String
+  sRowPac2 = psRowPac2
+End Property
+Public Property Let sRowPac2(lsRowPac2 As String)
+  psRowPac2 = lsRowPac2
+End Property
+Public Property Get sRowOta2() As String
+  sRowOta2 = psRowOta2
+End Property
+Public Property Let sRowOta2(lsRowOta2 As String)
+  psRowOta2 = lsRowOta2
+End Property
+
+
+
+Public Property Get sCurRow() As String
+  sCurRow = psCurRow
+End Property
+Public Property Let sCurRow(lsCurRow As String)
+  psCurRow = lsCurRow
+End Property
+Public Property Get sAppPath() As String
+  sAppPath = psAppPath
+End Property
+Public Property Let sAppPath(lsAppPath As String)
+  psAppPath = lsAppPath
+End Property
+
+Public Property Get nRecCnt() As Integer
+  nRecCnt = pnRecCnt
+End Property
+Public Property Let nRecCnt(lnRecCnt As Integer)
+  pnRecCnt = lnRecCnt
+End Property
+
+Public Property Get bNewEntry() As Boolean
+  bNewEntry = pbNewEntry
+End Property
+Public Property Let bNewEntry(lbNewEntry As Boolean)
+  pbNewEntry = lbNewEntry
+End Property
+
+Public Property Get bUnHide() As Boolean
+  bUnHide = pbUnhide
+End Property
+Public Property Let bUnHide(lbUnHide As Boolean)
+  pbUnhide = lbUnHide
+End Property
+
+' Order name by first name
+Public Property Get bSwapNames() As Boolean
+  bSwapNames = pbSwapNames
+End Property
+Public Property Let bSwapNames(lbSwapNames As Boolean)
+  pbSwapNames = lbSwapNames
+End Property
+
+
+'==================================================================================
+'    "Call Sheet" was initially designed to facilitate completing the OT call
+'     sheet. The NamesPhones sheet holds the names and phone numbers of OT staff
+'     on call for QEII Operating Theatres. The completed form is submitted to the
+'     after-hours coordinator.
+'    2016-02: expanded to include means to facilitate recording of overtime cases
+'     and hours worked by non-call as well as call staff, for late-running,
+'     after-hours and weekend theatre cases.
+'    2017-01: added capability to have second call team on weekends.
+
+'========================================================================
+'             LICENCE: GNU GENERAL PUBLIC LICENSE v3
+'========================================================================
+'  Terms of GPL v3 licence:
+'  This program is free software: you can redistribute it and/or modify
+'   it under the terms of the GNU General Public License as published by
+'   the Free Software Foundation, either version 3 of the License, or
+'   (at your option) any later version.
+'
+'  This program is distributed in the hope that it will be useful,
+'   but WITHOUT ANY WARRANTY; without even the implied warranty of
+'   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+'   GNU General Public License for more details.
+'
+'  You should have received a copy of the GNU General Public License
+'   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+'========================================================================
+'========================================================================
+' Change Log:
+'========================================================================
+'   Version .10 is a picklist-driven means to select the names of the
+'   person on call for scrub, scout, anaesthetics, recovery and operating
+'   theatre assistant. Selecting the name and then pressing tab fills out
+'   the phone number fields automatically.
+' 08-06-16... fixed the date field value to show up on the CallSheet.
+'   Change in the DoSave(): .sDate = TxtdDate prior to writing to the sheet.
+
+'========================================================================
+' TODOS:
+'========================================================================
+' To handle saving phone number change back to the master NamesPhones:
+' Row number and field abbrev to Meta record?
+
+' colours: RGB(255, 255, 255) - white
+' colours: RGB(255, 255, 153) - lemon
+' colours: RGB(255, 153, 204) - rose
+' colours: RGB(255, 204, 153) - beige
+' colours: RGB(204, 255, 255) - teal
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'==================================================================================
+'                             Add Staff Form
+'==================================================================================
+
+Option Explicit
+
+'==================================================================================
+' Application.......: Operating Theatre Call Sheet
+'                     (Add / Edit Staff)
+'==================================================================================
+
+
+
+Private Sub UserForm_Initialize()
+  Call MdlF.fillCbos(Me.CboActiveNames, "H")
+  Me.ChkShowActive = False
+  FrmCall.bNewEntry = True
+End Sub
+
+Private Sub CboActiveNames_Change()
+  Me.CmdNew.Enabled = True
+  ' users may type in a surname that does not exist. In that case, letters (parts of the
+  '  surname that is not in the list) cannot be parsed.
+  If Me.popFields Then
+    FrmCall.bNewEntry = False
+    FrmCall.sCurRow = Trim(Mid(Me.CboActiveNames, InStr(1, Me.CboActiveNames, "*") + 1))
+    Me.CmdDelete.Enabled = True
+  Else
+    FrmCall.bNewEntry = True
+    Me.CmdDelete.Enabled = False
+  End If
+  Me.ChkActive.ForeColor = IIf(Me.ChkActive, RGB(255, 0, 0), RGB(255, 255, 255))
+End Sub
+Private Sub CboActiveNames_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+  If FrmCall.bNewEntry And Len(Trim(Me.CboActiveNames & vbNullString)) > 0 Then
+    If MsgBox("Did you want to add " & Me.CboActiveNames.value & "?", vbYesNo) = vbYes Then
+      Me.clrFields
+    Else
+      FrmCall.bNewEntry = False
+    End If
+  End If
+End Sub
+
+Private Sub ChkShowActive_Click()
+  Call MdlF.fillCbos(Me.CboActiveNames, "H", Me.ChkShowActive)
+End Sub
+
+Private Sub CmdSwap_Click()
+  If Len(Trim(Me.TxtRing2)) < 1 Then MsgBox ("Nothing to swap!"): Exit Sub
+  
+  Dim sSavNo As String
+  sSavNo = Me.TxtRing2
+  Me.TxtRing2 = Me.TxtRing1
+  Me.TxtRing1 = sSavNo
+End Sub
+
+Private Sub CmdNew_Click()
+  Call Me.clrFields
+  FrmCall.bNewEntry = True
+End Sub
+
+Private Sub CmdCancel_Click()
+  Call Me.clrFields
+  FrmCall.bNewEntry = False
+  Unload Me
+End Sub
+
+Private Sub CmdDelete_Click()
+  If MsgBox("Deleting the record for " & Me.TxtLName & "!" & vbCrLf & _
+            "Are you sure you want to do this?", vbYesNo, "Careful!") = vbYes Then
+    Dim c_Row As String
+    c_Row = Trim(FrmCall.sCurRow)
+    c_Row = c_Row & ":" & c_Row
+    With Worksheets("NamesPhones")
+      .Select
+      .Rows(c_Row).Select
+      MsgBox c_Row
+      Selection.Delete Shift:=xlUp
+    End With
+    Worksheets("CallSheet").Select
+    Call MdlF.fillCbos(Me.CboActiveNames, "H")
+  End If
+End Sub
+
+Private Sub CmdesHelp_Click()
+  If Not MdlF.bHtmlHelp(FrmCall.sAppPath, "EditStaff.html") Then _
+    MdlF.sHTMLError
+End Sub
+
+Private Sub CmdClose_Click()
+  FrmCall.bNewEntry = False
+  Unload Me
+End Sub
+
+Private Sub CmdSave_Click()
+  Call Me.DoAddSave
+End Sub
+
+Private Sub TglUnHide_Click()
+  FrmCall.bUnHide = IIf(Me.TglUnHide, True, False)
+End Sub
+
+
+Public Sub DoAddSave()
+  Dim errStr As String
+  ' are all fields filled out?
+  errStr = Me.sCheckValids()
+  If Len(errStr) > 1 Then
+    ' traps for status set to inactive, does not stop
+    ' saving record (by design)
+    If Mid(errStr, 1, 3) = "Are" Then
+      If MsgBox(errStr, vbYesNo) = vbNo Then
+        Me.ChkActive = True
+        MsgBox "Activating status for " & Me.TxtLName
+      End If
+    Else
+      MsgBox ("Error: " & errStr)
+      Exit Sub
+    End If
+  End If
+
+  ' No errors, so Save
+  Dim cRecnum As String, oSheet As Worksheet
+  Set oSheet = Worksheets("NamesPhones")
+  With oSheet
+    If FrmCall.bNewEntry Then
+      FrmCall.bNewEntry = False
+      .Select
+      .Rows("2:2").Select
+      Selection.Insert Shift:=xlDown
+      cRecnum = "2"
+    Else
+      ' set during the cboActiveNames_Change()
+      cRecnum = FrmCall.sCurRow
+    End If
+    'reconvert to proper case in case someone mucked with the spelling
+    Me.TxtLName = Trim(StrConv(Me.TxtLName, vbProperCase))
+    Me.TxtFName = Trim(StrConv(Me.TxtFName, vbProperCase))
+    
+    ' Staff name: LastName FirstName
+    .Range("A" & cRecnum) = Me.TxtLName & " " & Me.TxtFName
+    ' Main phone number
+    .Range("B" & cRecnum) = Me.TxtRing1
+    ' Secondary phone number: not required
+    .Range("C" & cRecnum) = Me.TxtRing2
+    ' Scrub-scout
+    .Range("D" & cRecnum) = IIf(Me.ChkScrubScout, "1", "")
+    ' Anaesthetics
+    .Range("E" & cRecnum) = IIf(Me.ChkAnaes, "1", "")
+    ' Anaesthetics
+    .Range("F" & cRecnum) = IIf(Me.ChkPACU, "1", "")
+    ' Anaesthetics
+    .Range("G" & cRecnum) = IIf(Me.ChkOTA, "1", "")
+    ' Active
+    .Range("H" & cRecnum) = IIf(Me.ChkActive, "1", "0")
+    If FrmCall.bNewEntry Then FrmCall.bNewEntry = FrmCall.asSheetSort
+  End With
+  ThisWorkbook.Save
+  
+  Set oSheet = Nothing
+End Sub
+Public Function sCheckValids() As String
+  If Len(Me.TxtFName) < 1 Then sCheckValids = "missing First Name"
+  If Len(Me.TxtLName) < 1 Then sCheckValids = "missing Last Name"
+  If Len(Me.TxtRing1) < 1 Then sCheckValids = "missing at least one phone number"
+  If Not Me.ChkScrubScout And Not Me.ChkAnaes And Not Me.ChkPACU _
+     And Not Me.ChkOTA Then sCheckValids = "No specialty selected - select at least one"
+  If Not Me.ChkActive Then sCheckValids = "Are you sure you want the staffer's status " & vbCrLf & _
+                                          "to be inactive? The name will not appear in " & vbCrLf & _
+                                          "dropdowns on the On-Call form."
+End Function
+
+Public Function popFields() As Boolean
+  ' if the user is typing, trap for that
+  If InStr(1, Me.CboActiveNames, "*") = 0 Then Exit Function
+
+  Dim cRecnum As String, cName As String, oSheet As Worksheet
+  Set oSheet = Worksheets("NamesPhones")
+  With oSheet
+    cRecnum = Trim(Mid(Me.CboActiveNames, InStr(1, Me.CboActiveNames, "*") + 1))
+    If Len(cRecnum & vbNullString) = 0 Then
+      popFields = False
+      Set oSheet = Nothing
+      Exit Function
+    End If
+
+    cName = .Range("A" & cRecnum)
+    Me.TxtFName = Mid(cName, InStr(1, cName, " "))
+    Me.TxtLName = Mid(cName, 1, InStr(1, cName, " "))
+    Me.TxtRing1 = .Range("B" & cRecnum)
+    Me.TxtRing2 = .Range("C" & cRecnum)
+    Me.ChkScrubScout = IIf(.Range("D" & cRecnum) = "1", True, False)
+    Me.ChkAnaes = IIf(.Range("E" & cRecnum) = "1", True, False)
+    Me.ChkPACU = IIf(.Range("F" & cRecnum) = "1", True, False)
+    Me.ChkOTA = IIf(.Range("G" & cRecnum) = "1", True, False)
+    Me.ChkActive = IIf(.Range("H" & cRecnum) = "1", True, False)
+    popFields = True
+  End With
+  Me.ChkActive.ForeColor = IIf(Me.ChkActive, RGB(255, 0, 0), RGB(255, 255, 255))
+  
+  Set oSheet = Nothing
+End Function
+
+Public Sub clrFields()
+  Me.TxtFName = " "
+  Me.TxtLName = " "
+  Me.TxtRing1 = " "
+  Me.TxtRing2 = " "
+  Me.ChkScrubScout = False
+  Me.ChkAnaes = False
+  Me.ChkPACU = False
+  Me.ChkOTA = False
+  Me.ChkActive = True
+  Me.ChkActive.ForeColor = RGB(255, 0, 0)
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'==================================================================================
+'                          Common Functions Module (MdlF)
+'==================================================================================
+
+Option Explicit
+
+'===========================================================================================
+' Application.......:    ( Common Functions Module )
+' ..................:
+'
+' Updated...........: 18.09.10
+'
+' Developed By......: Robyn Hahn
+'
+'===========================================================================================
+
+
+Public Function bProtectWB(Optional bShowAll As Boolean) As Boolean
+  With ThisWorkbook
+  If bShowAll Then
+    .Sheets("NamesPhones").Visible = True
+    .Sheets("CallHistory").Visible = True
+    .Sheets("Lists").Visible = True
+    .Sheets("FrmBak").Visible = True
+    .Sheets("DBBak").Visible = True
+  Else
+    .Sheets("NamesPhones").Visible = xlVeryHidden
+    .Sheets("CallHistory").Visible = xlVeryHidden
+    .Sheets("Lists").Visible = xlVeryHidden
+    .Sheets("FrmBak").Visible = xlVeryHidden
+    .Sheets("DBBak").Visible = xlVeryHidden
+  End If
+  End With
+End Function
+'==================================================================
+'                         Worksheet Functions
+'==================================================================
+' Calculate-Minutes:
+'           Calculates elapsed OT minutes based on in-time and out time
+'           Allows for post-op recovery time, will use if entered
+'           Places output in Col I (always), Col J (reg staff overtime), Col K (call staff)
+'           Usage notes: since we're calculating overtime, the Arrive OT time (Col F) needs
+'                        to be the time daytime staffer (non-call person) was rostered off.
+Public Function calcMinutes(currCol As String, _
+                            otimeIn As Date, _
+                            otimeOut As Date, _
+                            ptimeOut As Date, _
+                            otCateg As String) As Integer
+  ' trap for not enough entries to do calculations with
+  If otimeIn = 0 Or otimeOut = 0 Then calcMinutes = 0: Exit Function
+  
+  Dim n_hrs2Mins As Integer, n_calcMins As Integer, _
+      n_HrI As Integer, n_HrO As Integer, n_MnI As Integer, n_MnO As Integer
+  
+  ThisWorkbook.bDisableWBChange = True
+  
+  ' Possible categories: A) non-oncall staff overtime, B) Call Staff overtime, C) Weekend
+  otCateg = UCase(otCateg)
+  
+  ' covert to integers
+  n_HrI = Hour(otimeIn)    ' Time In (Hour)
+  n_HrO = IIf(ptimeOut > 0, Hour(ptimeOut), Hour(otimeOut))  ' Time Out (Hour)
+  n_MnI = Minute(otimeIn)  ' Time In (Minute)
+  n_MnO = IIf(ptimeOut > 0, Minute(ptimeOut), Minute(otimeOut)) ' Time Out (Minute)
+
+  ' Change of date (around midnight) - Key!: process in this order
+  If (n_HrO - n_HrI) < 0 Then n_HrO = n_HrO + 24
+  ' if n_HrO - n_HrI = 0, it will be 0 * 60 = 0
+  n_hrs2Mins = (n_HrO - n_HrI) * 60
+  n_calcMins = n_hrs2Mins + (n_MnO - n_MnI)
+  
+  ' Columns I, K and K call this function
+  If currCol = "I" Then calcMinutes = n_calcMins
+  ' [ stay-over non-call staff ] i.e., not a call-staff case
+  If currCol = "J" Then calcMinutes = IIf(otCateg = "A", n_calcMins, 0)
+  ' [ call staff ] - any case that is not reg-staff overtime is a call case
+  If currCol = "K" Then calcMinutes = IIf(Not otCateg = "A", n_calcMins, 0)
+  
+  ThisWorkbook.bDisableWBChange = False
+End Function
+
+
+'==================================================================
+'                         Form Functions
+'==================================================================
+Public Sub fillCbos(oCbo As Control, _
+                    s_Col As String, _
+                    Optional bGrabAll As Boolean)
+
+  Dim i As Integer, j As Integer, nlistCnt As Integer, nStrLen As Integer, nMaxLen As Integer
+  Dim s_Name As String, sRecNo As String, cPadChar As String, sSecNo As String, _
+  sPriNo As String, arNames() As String
+  Dim oSheet As Worksheet
+
+  oCbo.Clear
+  cPadChar = " "
+  nMaxLen = 30
+  j = 0
+  Set oSheet = Worksheets("NamesPhones")
+  For i = 1 To (FrmCall.nRecCnt)
+    If i = 1 Then ReDim arNames(0)
+    
+    ' skip the first header row
+    If i > 1 Then
+      s_Name = Trim(oSheet.Range("A" & Trim(Str(i))))
+      If FrmCall.bSwapNames Then s_Name = sNameSwap(s_Name, "SWAP")
+      If s_Col = "H" Then
+        nStrLen = Len(s_Name)
+        sRecNo = Str(oSheet.Range("A" & Trim(Str(i))).Row)
+        sPriNo = Trim(oSheet.Range("B" & Trim(Str(i))))
+        sPriNo = IIf(Len(sPriNo) = 10, sPriNo, sPriNo & String(2, cPadChar))
+        sSecNo = Trim(oSheet.Range("C" & Trim(Str(i))))
+        sSecNo = IIf(Len(sSecNo) > 0, sSecNo, String(10, cPadChar))
+        s_Name = s_Name & String(nMaxLen - nStrLen, cPadChar)
+        s_Name = s_Name & "  " & sPriNo & "  " & sSecNo & "     *" & sRecNo
+      End If
+      
+      ' swaps first and last name
+      If FrmCall.bSwapNames Then
+        If Len(Trim(s_Name) & vbNullString) > 0 Then
+          If Not bGrabAll Then
+            If Trim(oSheet.Range(s_Col & Trim(Str(i)))) = "1" Then
+              j = j + 1
+              ReDim Preserve arNames(j)
+              arNames(j) = s_Name
+            End If
+          Else
+            j = j + 1
+            ReDim Preserve arNames(j)
+            arNames(j) = s_Name
+          End If
+        End If
+        ' being called from EditStaff
+      Else
+        If bGrabAll Then
+          oCbo.AddItem (s_Name)
+        Else
+          If Trim(oSheet.Range(s_Col & Trim(Str(i)))) = "1" Then oCbo.AddItem (s_Name)
+        End If
+      End If
+    End If
+  Next i
+  
+  If FrmCall.bSwapNames Then
+    QuickSort arNames, LBound(arNames), UBound(arNames)
+    j = 1
+    For j = LBound(arNames) To UBound(arNames)
+      If Len(arNames(j) & vbNullString) > 0 Then oCbo.AddItem (arNames(j))
+    Next j
+  End If
+
+  Set oSheet = Nothing
+End Sub
+Public Sub QuickSort(arr As Variant, first As Long, last As Long)
+  Dim vCentreVal As Variant, vTemp As Variant
+  Dim lTempLow As Long, lTempHi As Long
+  lTempLow = first
+  lTempHi = last
+  
+  vCentreVal = arr((first + last) \ 2)
+  Do While lTempLow <= lTempHi
+  
+    Do While arr(lTempLow) < vCentreVal And lTempLow < last
+      lTempLow = lTempLow + 1
+    Loop
+    Do While vCentreVal < arr(lTempHi) And lTempHi > first
+      lTempHi = lTempHi - 1
+    Loop
+    
+    If lTempLow <= lTempHi Then
+        ' Swap values
+        vTemp = arr(lTempLow)
+        arr(lTempLow) = arr(lTempHi)
+        arr(lTempHi) = vTemp
+        ' Move to next positions
+        lTempLow = lTempLow + 1
+        lTempHi = lTempHi - 1
+    End If
+  Loop
+  
+  If first < lTempHi Then QuickSort arr, first, lTempHi
+  If lTempLow < last Then QuickSort arr, lTempLow, last
+End Sub
+
+
+Public Function savValid(myForm As UserForm) As String
+  With myForm
+    ' Check for empties
+    If Len(.CboScrub.Text) = 0 Then savValid = "Scrub"
+    If Len(.CboScout.Text) = 0 Then savValid = "Scout"
+    If Len(.CboAnaes.Text) = 0 Then savValid = "Anaesthetics"
+    If Len(.CboOTA.Text) = 0 Then savValid = "OTA"
+    If Len(.CboPACU.Text) = 0 Then savValid = "Recovery"
+    ' Only check for empties in following fields if 2nd call team
+    If Len(.CboScrub2.Text) > 0 Or Len(.CboScout2.Text) > 0 Or _
+      Len(.CboAnaes2.Text) > 0 Or Len(.CboOTA2.Text) > 0 Or _
+      Len(.CboPACU2.Text) > 0 Then
+      If Len(.CboScrub2.Text) = 0 Then savValid = "Scrub"
+      If Len(.CboScout2.Text) = 0 Then savValid = "Scout"
+      If Len(.CboAnaes2.Text) = 0 Then savValid = "Anaesthetics"
+      If Len(.CboOTA2.Text) = 0 Then savValid = "OTA"
+      If Len(.CboPACU2.Text) = 0 Then savValid = "Recovery"
+    End If
+    ' TODO: Check for duplicate entries
+  End With
+End Function
+
+Public Function ChkRec(sDate As String) As Boolean
+  Dim sRng As String, rFound As Range, oSheet As Worksheet
+  
+  sRng = "A2:A" & Trim(Str(MdlF.ColumnCnt("CallHistory", 1)))
+  If Val(Mid(sRng, 5)) = 0 Then ChkRec = True: Exit Function ' traps for empty sheet
+  
+  Set oSheet = Worksheets("CallHistory")
+  
+  With oSheet
+  Set rFound = .Range(sRng).Find(What:=sDate, _
+                                 LookIn:=xlValues, _
+                                 searchOrder:=xlColumns)
+  On Error GoTo 0
+  If rFound Is Nothing Then
+    ChkRec = True ' NewEntry is TRUE
+  Else
+    ChkRec = False
+  End If
+  End With
+  Set rFound = Nothing
+  Set oSheet = Nothing
+End Function
+
+Public Function sRecNum(sEmpName As String) As String
+  Dim sList As String, rFound As Range, oSheet As Worksheet
+  
+  sEmpName = Trim(sEmpName)
+  sList = "A2:A" & Trim(Str(FrmCall.nRecCnt + 1))
+  Set oSheet = Worksheets("NamesPhones")
+  
+  With oSheet
+    On Error Resume Next
+    Set rFound = .Range(sList).Find(What:=sEmpName, _
+                                    LookIn:=xlValues, _
+                                    searchOrder:=xlColumns)
+    On Error GoTo 0
+    If Not rFound Is Nothing Then
+      sRecNum = Trim(Str(.Range(rFound.Address).Row))
+    Else
+      sRecNum = "None Found"
+    End If
+  End With
+  Set oSheet = Nothing
+  Set rFound = Nothing
+End Function
+
+Public Function setHrMin(cNum As String, cHM As String) As String
+  If cHM = "H" Then setHrMin = Mid(cNum, 1, InStr(1, cNum, ":") - 1)
+  If cHM = "M" Then setHrMin = Mid(cNum, InStr(1, cNum, ":"))
+End Function
+
+
+Public Function ColumnCnt(sSheet As String, _
+                          nColN As Integer) As Integer
+  Dim sSavSheet As String
+  
+  sSavSheet = ActiveSheet.Name
+  With Application.Worksheets(sSheet)
+    .Select: ColumnCnt = WorksheetFunction.CountA(Columns(nColN))
+  End With
+  Application.Worksheets(sSavSheet).Select
+End Function
+
+
+Public Function timeFormat(sTime As String) As String
+  Dim sTemp1 As String, sTemp2 As String
+  ' check if sTime has already been formatted
+  ' need to remove ":" and reformat (in case the time has changed)
+  If InStr(1, sTime, ":") > 0 Then timeFormat = sTime: Exit Function
+    'sTemp1 = Mid(sTime, 1, InStr(1, sTime, ":") - 1)
+    'sTemp2 = Mid(sTime, InStr(1, sTime, ":") + 1)
+    'sTime = sTemp1 & sTemp2
+    'End If
+  
+  sTime = Trim(sTime)
+  If Len(sTime) = 3 Then sTime = "0" & sTime
+  sTemp1 = Mid(sTime, 1, 2)
+  sTemp2 = Right(sTime, 2)
+  timeFormat = sTemp1 & ":" & sTemp2
+End Function
+
+
+Public Function calcT(nHr1 As Integer, nMn1 As Integer, _
+                      nHr2 As Integer, nMn2 As Integer) As Integer
+                      
+  If nHr1 = 0 Or nHr2 = 0 Then calcT = 0: Exit Function
+  If nMn2 > nMn1 Then
+    If nHr2 > nHr1 Then
+      calcT = nMn2 - nMn1 + (60 * (nHr2 - nHr1))
+    Else
+      calcT = nMn2 - nMn1 + (nHr2 - nHr1)
+    End If
+  End If
+  If nMn2 <= nMn1 Then _
+    calcT = (nMn2 + (60 * (nHr2 - nHr1))) - nMn1
+  
+End Function
+
+
+Public Function setWBLoc() As String
+  Select Case Worksheets("Meta").Range("Z4")
+    Case Is = "PACU-A"
+      setWBLoc = "PA"
+    Case Is = "PACU-B"
+      setWBLoc = "PB"
+    Case Is = "DSU-A"
+      setWBLoc = "DA"
+    Case Is = "DSU-B"
+      setWBLoc = "DB"
+  End Select
+End Function
+
+
+'==================================================================
+' RecordPointer()
+' accepts: record row integer
+' returns: list index of List where (e.g.) Left(ListASA, 6) matches rowID
+Public Function RecordPointer(myForm As UserForm, rowID As Integer) As Integer
+  If Len(rowID) = 0 Then RecordPointer = 0: Exit Function
+
+  Dim bFound As Boolean, intIndex As Integer
+  bFound = False
+  intIndex = 0
+  With myForm
+    If Not .LstASA.ListCount = 0 Then
+      Do While Not bFound And intIndex < .LstASA.ListCount
+        If Left(.LstASA.List(intIndex), 6) = rowID Then
+          RecordPointer = intIndex    ' awkward, but function exits here
+          bFound = True
+        End If
+        intIndex = intIndex + 1
+      Loop
+    End If
+  End With
+End Function
+
+
+'==================================================================
+' RecNo():
+' Works with greater flexibility than before. Parameter list as
+'  follows:
+'  Accepts:   [cSearch]- any string (index code/entries/whatever)
+'              [cSheet]- Worksheet name
+'             [cRowRng]- how many rows are searched
+'        Opt. [cColLtr]- "A" or a passed column letter
+'        Opt. [cRowBeg]- "1" or first row of range
+'  Returns:   0 if not found, or the record row number (Integer)
+'==================================================================
+Public Function RecNo(cSearch As String, _
+                       cSheet As String, _
+                       cRowRng As String, _
+                       Optional cColLtr As String, _
+                       Optional cRowBeg As String) As Integer
+  Dim oSheet As Worksheet, rFound As Range
+  Dim cAddress As String, c_Rng As String, c_Col As String
+  Dim nRownum As Integer, n_RngVal As Integer
+
+  Set oSheet = Worksheets(cSheet)
+  cColLtr = IIf(Len(cColLtr) > 0, Trim(cColLtr), "A")
+  cRowBeg = IIf(Len(cRowBeg) > 0, Trim(cRowBeg), "1")
+
+' searches the sheet defined by the 1st char of parm index
+  With oSheet
+    c_Rng = cColLtr & cRowBeg & ":" & cColLtr & Trim(cRowRng)
+    On Error Resume Next
+    ' first Find loop
+    Set rFound = .Range(c_Rng).Find(What:=cSearch, _
+                   LookIn:=xlValues, searchOrder:=xlColumns)
+    On Error GoTo 0
+    If rFound Is Nothing Then
+      RecNo = 0
+    Else
+      ' go back to the main worksheet and find the record with that SAID
+      RecNo = .Range(rFound.Address).Row
+      'findStr = .Range("A" & Trim(Str(nRowNum)))
+    End If
+  End With
+    
+  Set oSheet = Nothing
+  Set rFound = Nothing
+End Function
+
+
+'===============================================================================
+' sNameSwap takes the entry in column B and swaps the first and last names.
+'  It assumes the entry has been generated by the program and is entered:
+'  [Last First]
+' Influenced by the boolean tickbox [] ChkFirstName and form property bSwapNames.
+' Called by...: Cbo{Position}_Click() - 2nd parm "SWAP"
+'  ...........: DoSave()              - 2nd parm "SAVE"
+'  ...........: FillCbos()            - 2nd parm "SWAP"
+' Additional function, called by DoSave() to insert a comma into the string if
+'  the name is in [Last First] format, so it appears as [Last, First].
+'===============================================================================
+Public Function sNameSwap(sNameStr As String, sAction As String) As String
+  Dim sName01 As String, sName02 As String, sSpaceStr As String, sNameChk As String
+  Dim nSpcLoc As Integer
+  
+  ' Default name arrangement is [Last First] (no comma).
+  sSpaceStr = " "
+  nSpcLoc = InStr(1, sNameStr, " ")
+  sName01 = Trim(Mid(sNameStr, 1, nSpcLoc))
+  sName02 = Trim(Mid(sNameStr, nSpcLoc + 1))
+  ' do not swap when saving
+  If sAction = "SWAP" Then sNameSwap = sName02 & sSpaceStr & sName01
+  
+  ' DoSave() only. Insert the comma if the name is in [Last First] format
+  If sAction = "SAVE" Then
+    sSpaceStr = IIf(Not FrmCall.bSwapNames, ", ", " ")
+    sNameChk = sName01 & sSpaceStr & sName02
+    sNameSwap = IIf(Len(Trim(sNameChk)) = 1, vbNullString, sNameChk)
+  End If
+End Function
+
+
+Public Function setRecID(recCount As String, sPrefix As String) As String
+  setRecID = Mid(sPrefix, 1, 2) & Trim(Str(Val(100000 + recCount + 1)))
+End Function
+
+
+Function FindInArray(pList() As Integer, value As Integer) As Integer
+  Dim i As Integer, FoundValueLocation As Integer
+
+  FoundValueLocation = -1
+
+  For i = 0 To UBound(pList)
+    If pList(i) = value Then
+      FoundValueLocation = i
+      Exit For
+    End If
+  Next i
+
+  FindInArray = FoundValueLocation
+End Function
+
+
+Public Sub DoColourField(oField As Control, bSetClear As Boolean)
+  Dim rose, white
+  white = RGB(255, 255, 255)
+  rose = RGB(255, 153, 204)
+  
+  If bSetClear Then
+    oField.BackColor = white
+  Else
+    oField.BackColor = rose
+  End If
+End Sub
+
+
+
+
+'============================================================================
+'                     ***  OTHER CODE REPOSITORY   ***
+'============================================================================
+
+Public Function FormActivate(myForm As UserForm, cDept As String) _
+                             As Boolean
+  With myForm
+    If cDept = "OT" Then
+      .BackColor = RGB(0, 255, 255)
+      .FrameTop.BackColor = RGB(204, 255, 255)
+      .FrameStatus.BackColor = RGB(204, 255, 255)
+    End If
+    If cDept = "ANAE" Then
+      .BackColor = RGB(0, 128, 255)
+      .FrameTop.BackColor = RGB(255, 255, 0)
+      .FrameStatus.BackColor = RGB(255, 255, 0)
+    End If
+    If cDept = "PACU" Then
+      .BackColor = RGB(255, 128, 204)
+      .FrameTop.BackColor = RGB(204, 204, 255)
+      .FrameStatus.BackColor = RGB(204, 204, 255)
+    End If
+  End With
+  FormActivate = True
+End Function
+
+Public Function LoopThroughFiles() As Boolean
+   Dim MyObj As Object, MySource As Object, file As Variant
+   Set MySource = MyObj.GetFolder("c:\testfolder\")
+   For Each file In MySource.Files
+      If InStr(file.Name, "test") > 0 Then
+         MsgBox "found"
+         Exit Function
+      End If
+   Next file
+End Function
+
+Public Function pCellClr(myForm As UserForm) As Integer
+  If myForm.OptSvc = True Then pCellClr = 2 ' white
+  If myForm.OptRep = True Then pCellClr = 46 ' orange
+  If myForm.OptRpl = True Then pCellClr = 38 ' rose
+  If myForm.OptMis = True Then pCellClr = 3 ' red
+  If myForm.OptSto = True Then pCellClr = 16 ' grey
+End Function
+
+'==================================================================
+' Parses strings for saving to temporary record in Print sheet
+' accepts: string from ListEquip; length to shorten string; optionally p for parse
+' returns: either string to save to record or shortened string
+'==================================================================
+Public Function strPrs(c_Str As String, n_Len As Integer, p As Boolean) As String
+  strPrs = IIf(p, Trim(Mid(c_Str, n_Len)), Trim(Mid(c_Str, 1, n_Len)))
+End Function
+
+Public Function FileExists(cFullName As String) As Boolean
+  On Error GoTo EarlyExit
+  If Not Dir(cFullName, vbDirectory) = vbNullString Then FileExists = True
+
+  EarlyExit:
+  On Error GoTo 0
+End Function
+
+
+
+Sub OpenInFireFoxNewTab(url As String)
+  Dim pathFireFox As String
+  pathFireFox = "C:\Program Files (x86)\Mozilla Firefox\firefox.exe"
+  If Dir(pathFireFox) = "" Then pathFireFox = "C:\Program Files\Mozilla Firefox\firefox.exe"
+  If Dir(pathFireFox) = "" Then
+    MsgBox "FireFox Path Not Found", vbCritical, "Macro Ending"
+    Exit Sub
+  End If
+  Shell """" & pathFireFox & """" & " -new-tab " & url, vbHide
+End Sub
+
+
+Function AgeDiff(date1, date2)
+  '...where date1 is older, date2 is newer, ie, today
+  Dim lastFullYear, lastDays, preBirthdays
+  
+  lastFullYear = DateSerial(Year(date2) - 1, 12, 31)
+  lastDays = DateDiff("d", lastFullYear, date2)
+  preBirthdays = DateDiff("d", _
+  DateSerial(Year(date1) - 1, 12, 31), date1)
+  If (Month(date1) = Month(date2)) And _
+  (Day(date1) = Day(date2)) Then
+    AgeDiff = CStr(Year(date2) - Year(date1)) & ".0"
+  Else
+   If preBirthdays <= lastDays Then
+    AgeDiff = CStr(DateDiff("yyyy", date1, date2)) & "." & _
+      CStr(DateDiff("d", DateSerial(Year(date2), _
+      Month(date1), Day(date1)), date2))
+   Else
+    AgeDiff = CStr(DateDiff("yyyy", date1, _
+    DateSerial(Year(date2), _
+    Month(date1), Day(date1))) - 1) & "." & _
+    CStr(DateDiff("d", DateSerial(Year(date2) - 1, _
+    Month(date1), Day(date1)), date2))
+   End If
+  End If
+End Function
+
+
+
+Public Function Convert2Dec(cNum)
+  Dim nNum As Integer
+  
+  nNum = Val(cNum)
+  Select Case nNum
+    Case 0 To 5: Convert2Dec = 0
+    Case 6 To 11: Convert2Dec = 0.1
+    Case 12 To 17: Convert2Dec = 0.2
+    Case 18 To 23: Convert2Dec = 0.3
+    Case 24 To 29: Convert2Dec = 0.4
+    Case 30 To 35: Convert2Dec = 0.5
+    Case 36 To 41: Convert2Dec = 0.6
+    Case 42 To 47: Convert2Dec = 0.7
+    Case 48 To 53: Convert2Dec = 0.8
+    Case 54 To 59: Convert2Dec = 0.9
+  End Select
+
+End Function
+
+
+Public Function validDate(vVal As Double) As Boolean
+  Dim cMsg As String
+    'If the string is empty, get out
+    cMsg = "Not a valid date..."
+    If Len(Trim(vVal)) = 0 Then validDate = False: Exit Function
+    ' If the string is not a number, get out
+    If VarType(Val(vVal)) <> vbDouble Then
+      MsgBox (cMsg): validDate = False: Exit Function
+    End If
+    If Len(vVal) < 8 Then
+      MsgBox (cMsg): validDate = False:  Exit Function
+    End If
+    validDate = True
+End Function
+
+
+Public Sub SortList(lst As Control)
+  Dim strTemp As String
+  Dim i As Integer
+  Dim j As Integer
+  For i = 0 To lst.ListCount - 1
+    For j = i + 1 To lst.ListCount - 1
+      If lst.ItemData(i) > lst.ItemData(j) Then
+        strTemp = lst.ItemData(i)
+        lst.RemoveItem (i)
+        lst.AddItem lst.ItemData(j - 1), i
+        lst.RemoveItem (j)
+        lst.AddItem strTemp, j - 1
+       End If
+     Next j
+   Next i
+End Sub
+
+
+Sub ElegantCodeSolutions()
+  Application.ScreenUpdating = False
+
+' -- [Wait Cursor during Save]
+'  With Application
+'    .Cursor = xlWait
+'    .ThisWorkbook.Save
+'    .Cursor = xlDefault
+'  End With
+
+
+' -- [Delete Specified Row]
+'  Rows(c_Row & ":" & c_Row).Select
+'  Selection.Delete Shift:=xlUp
+
+
+' -- [Define Date Type]
+'    If TypeName(.cCurDate) <> "Date" Then
+'      .cCurDate = CDate(Date)
+'    End If
+
+
+' -- [Sets focus on specific form object]
+'    Me.TxtProcNum.SetFocus
+
+
+' -- [Inserts formulas into cells]
+'      Range("K5").Value = "=IF(I5-H5<=0,0,((I5-H5)*24)*60)"
+'      Range("L5").Value = "=IF(J5-G5<=0,0,((J5-G5)*24)*60)"
+
+
+' -- [Forces Aussie Date format on nationalistically-myopic US settings]
+'  With TxtDate
+'    If Not Mdl_Main.IsValidDate(.Value) Then Exit Sub
+'    cChk = Mid(.Value, 3, 1)
+  ' If the user changes the value added by the New_Click() method
+'    If cChk <> "/" Then
+'      If Len(Trim(.Text)) < 8 Or Len(Trim(.Text)) > 8 Then
+'        MsgBox ("Please enter the full eight digits of the date")
+'        Exit Sub
+'      End If
+  ' Adds the "/" if they were not entered
+'      cDDay = Mid(.Value, 1, 2)
+'      cDMon = Mid(.Value, 3, 2)
+'      cDYear = Mid(.Value, 5)
+'      .Text = cDMon & "/" & cDDay & "/" & cDYear
+'      Me.cExtMonth = Mdl_Main.GetMonth(cDMon)
+      '.Value = Mdl_Date.USADateFmt(.Value)
+'    End If
+'  End With
+'  With Me
+'    cMSDate = Format(.TxtDate.Value, "mm/dd/yyyy")
+'    .cExtMonth = Month(cMSDate)
+'    Call ChooseSheet(.cExtMonth)
+'    .Caption = "CCL Patient Ledger - " & .cMonthName
+'  End With
+
+
+
+' -- [Forces uppercase entries]
+'  TxtFirstName.Text = UCase(TxtFirstName.Text)
+
+
+
+' -- [Enables Combo based on filed not empty]
+'With Me.CmdProcs
+'  .Enabled = IIf((Len(Trim(.TxtProcNum.Value)) = 0 And _
+'                  Len(Trim(.TxtDate.Value)) = 0), _
+'                  False, True)
+'End With
+
+
+
+' -- [Time validation: _
+      Private Sub TxtTICCL_Exit(ByVal Cancel As MSForms.ReturnBoolean)
+'  With TxtTICCL
+'    If Len(Trim(.Value)) = 0 Then Exit Sub
+  'Adds the ":" if they were not entered
+'    Me.cChk = Mid(.Value, 3, 1)
+'    If Me.cChk <> ":" Then
+'      cTStr1 = Mid(.Value, 1, 2)
+'      cTStr2 = Mid(.Value, 3)
+'      .Value = cTStr1 & ":" & cTStr2
+'    End If
+'    .Value = Format(TxtTICCL.Text, "hh:mm")
+'  End With
+  
+'val = Format(.Range("G" & c_Row).Value, "hh:mm")
+End Sub
+
+
+Function Age_Diff(date1, date2)
+  '...where date1 is older, date2 is newer, ie, today
+  Dim lastFullYear, lastDays, preBirthdays
+  
+  lastFullYear = DateSerial(Year(date2) - 1, 12, 31)
+  lastDays = DateDiff("d", lastFullYear, date2)
+  preBirthdays = DateDiff("d", _
+  DateSerial(Year(date1) - 1, 12, 31), date1)
+  If (Month(date1) = Month(date2)) And _
+  (Day(date1) = Day(date2)) Then
+    Age_Diff = CStr(Year(date2) - Year(date1)) & ".0"
+  Else
+   If preBirthdays <= lastDays Then
+    Age_Diff = CStr(DateDiff("yyyy", date1, date2)) & "." & _
+      CStr(DateDiff("d", DateSerial(Year(date2), _
+      Month(date1), Day(date1)), date2))
+   Else
+    Age_Diff = CStr(DateDiff("yyyy", date1, _
+    DateSerial(Year(date2), _
+    Month(date1), Day(date1))) - 1) & "." & _
+    CStr(DateDiff("d", DateSerial(Year(date2) - 1, _
+    Month(date1), Day(date1)), date2))
+   End If
+  End If
+End Function
+
+
+Public Sub SaveThisEntry(myForm As UserForm, c_Row As String)
+  'Application.ScreenUpdating = True
+
+  With myForm
+  ' Column A is "Incomplete Record" tally
+  ' Finalized?
+  Range("A" & c_Row).value = IIf(.lFinalized = False, 1, 0)
+  
+  ' Date of Procedure
+  Range("B" & c_Row).value = .TxtDate.value
+  
+  ' Patient last name
+  Range("C" & c_Row).value = .TxtLastName.value
+  ' Patient first name
+  Range("D" & c_Row).value = .TxtFirstName.value
+  
+  ' Patient medical record number
+  If .TxtURNumber.value = "" Then
+    .TxtURNumber.value = "ZZZZZZZ"
+  End If
+  Range("E" & c_Row).value = .TxtURNumber.value
+  
+  ' Patient's age at time of procedure
+  If Len(Trim(.TxtAge.value)) <> 0 Then
+    Range("F" & c_Row).value = CDate(.TxtAge.value)
+  End If
+  
+  ' Time in CCL
+  If Len(Trim(.TxtTICCL.value)) = 0 Then
+    .TxtTICCL.value = "00:00"
+  End If
+  Range("G" & c_Row).value = .TxtTICCL.value
+  
+  ' Time in OT
+  If Len(Trim(.TxtTIOT.value)) = 0 Then
+    .TxtTIOT.value = "00:00"
+  End If
+  Range("H" & c_Row).value = .TxtTIOT.value
+  
+  ' Time out OT
+  If Len(Trim(.TxtTOOT.value)) = 0 Then
+    .TxtTOOT.value = "00:00"
+  End If
+  Range("I" & c_Row).value = .TxtTOOT.value
+  
+  ' Time out CCL
+  If Len(Trim(.TxtTOCCL.value)) = 0 Then
+    .TxtTOCCL.value = "00:00"
+  End If
+  Range("J" & c_Row).value = .TxtTOCCL.value
+  
+  ' Column K & L are "Procedure Time" and "Total Time"
+  
+  ' M, N and O are Local, IV Sedation and General Anaesthetics
+  Range("M" & c_Row).value = IIf(.ChkLocal.value = True, 1, 0)
+  Range("N" & c_Row).value = IIf(.ChkIVSed.value = True, 1, 0)
+  Range("O" & c_Row).value = IIf(.ChkGeneral.value = True, 1, 0)
+  
+  ' Physician's name
+  Range("P" & c_Row).value = .CboMD.value
+  
+  ' Indications for the procedure
+  Range("R" & c_Row).value = .CboIndication.value
+  
+  ' Patient discharged to
+  Range("S" & c_Row).value = .CboDischarge.value
+  
+  ' Scrub nurse's name
+  Range("T" & c_Row).value = .CboScrub.value
+  ' Scout nurse's name
+  Range("U" & c_Row).value = .CboScout.value
+  ' Monitor nurse's name
+  Range("V" & c_Row).value = .CboMonitor.value
+  ' Radiographer's name
+  Range("W" & c_Row).value = .CboRad.value
+  
+  ' Additional notes
+  Range("X" & c_Row).value = .TxtNotes.value
+  
+  ' Procedure number
+  Range("Y" & c_Row).value = Val(.TxtProcNum.value)
+  'Call SaveConstants(.nLastProcNum)
+  
+  ' How was the patient managed after the cath?
+  Range("AA" & c_Row).value = IIf(.OptNormal.value = True, 1, 0)
+  Range("AB" & c_Row).value = IIf(.OptMedical.value = True, 1, 0)
+  Range("AC" & c_Row).value = IIf(.OptPCI.value = True, 1, 0)
+  Range("AD" & c_Row).value = IIf(.OptSurg.value = True, 1, 0)
+  
+  ' Gender
+  Range("AE" & c_Row).value = .cgGender
+  
+  ' Emergency
+  Range("AF" & c_Row).value = IIf(.ChkEmergency.value = True, 1, 0)
+  
+  ' ReoPro
+  Range("AG" & c_Row).value = IIf(.ChkReopro.value = True, 1, 0)
+  
+  ' Complications
+  Range("AH" & c_Row).value = IIf(.ChkVT.value = True, 1, 0)
+  Range("AI" & c_Row).value = IIf(.ChkVaso.value = True, 1, 0)
+  Range("AJ" & c_Row).value = IIf(.ChkContrast.value = True, 1, 0)
+  Range("AK" & c_Row).value = IIf(.ChkTomato.value = True, 1, 0)
+  Range("AL" & c_Row).value = IIf(.ChkDeath.value = True, 1, 0)
+  
+  ' Procedure list
+  ' Call SaveProcedures
+  
+  ' If the patient is new, add to the AllPats sheet
+  If .lPatFound = False Then
+    Worksheets("AllPats").Select
+    Rows("5:5").Select
+    Selection.Insert Shift:=xlDown
+    Range("A5").Activate
+    c_Row = "5"
+
+    ' Patient UR number
+    Range("B" & c_Row).value = .TxtURNumber.value
+    ' Patient last name
+    Range("C" & c_Row).value = .TxtLastName.value
+    ' Patient first name
+    Range("D" & c_Row).value = .TxtFirstName.value
+    ' Patient DOB
+    Range("E" & c_Row).value = .TxtDOB.value
+    ' Gender
+    Range("F" & c_Row).value = .cgGender
+  End If
+
+  Worksheets(.cCurSheet).Select
+  .lPatFound = False  ' reset for the next patient
+  End With
+End Sub
+
+
+' To replace savValid()
+Public Function EntryValidate(myForm As UserForm) As Boolean
+  Dim cMsg As String, aAddMsg As String, cCtrl As Control
+
+  cMsg = ""
+  For Each cCtrl In myForm.Controls
+    With cCtrl
+      Select Case .Name
+        Case "TxtProcNum"
+          aAddMsg = "the procedure number..."
+        Case "TxtDate"
+          aAddMsg = "the date of the procedure..."
+        Case "TxtLastName"
+          aAddMsg = "a last name..."
+        Case "TxtFirstName"
+          aAddMsg = "a first name..."
+        Case "TxtDOB"
+          aAddMsg = "the date of birth..."
+        Case "TxtTICCL"
+          aAddMsg = "time patient entered CCL..."
+        Case "TxtURNumber"
+          aAddMsg = "a medical record number..."
+        Case "CboScrub"
+          aAddMsg = "a scrub nurse's name..."
+        Case "CboScout"
+          aAddMsg = "a scout nurse's name..."
+        Case "CboMonitor"
+          aAddMsg = "a monitor nurse's name..."
+        Case "CboRad"
+          aAddMsg = "a radiographer's name..."
+        Case "CboMD"
+          aAddMsg = "a doctor's name..."
+        Case "CboIndication"
+          aAddMsg = "an Indication for the procedure..."
+        Case "CboDischarge"
+          aAddMsg = "where the patient was discharged to..."
+      End Select
+      If TypeName(cCtrl) = "ComboBox" Or _
+         TypeName(cCtrl) = "TextBox" _
+        Then
+        If Len(Trim(.value)) = 0 Then
+          If cCtrl.Name = "TxtNotes" Then
+            ' Do nothing
+          Else
+            cMsg = cMsg & vbCrLf & aAddMsg
+            .BackColor = &HC0C0FF
+          End If
+        End If
+      End If
+    End With
+  Next
+  
+  If cMsg <> "" Then
+    MsgBox "Please enter the following:" & vbCrLf & cMsg
+    EntryValidate = False
+  Else
+    EntryValidate = True
+  End If
+End Function
+
+' ACCEPTS: cNum = the entered number in the time field
+'          cHM  = toggle whether hour or mins to be returned
+' RETURNS: hour or min as integer for calculations in CalcT()
+Public Function setHM(cNum As String, cHM As String) As Integer
+  Dim nPHr As Integer, nPMin As Integer
+  
+  cNum = Trim(cNum)
+  ' remove the ":"
+  If InStr(1, cNum, ":") > 0 Then _
+    cNum = Mid(cNum, 1, InStr(1, cNum, ":") - 1) & _
+           Mid(cNum, InStr(1, cNum, ":") + 1)
+  If Len(cNum) = 3 Then
+    nPHr = Mid(cNum, 1, 1)
+    nPMin = Mid(cNum, 2)
+  End If
+  If Len(cNum) = 4 Then
+    If Mid(cNum, 1, 1) = "0" Then
+      nPHr = Mid(cNum, 2, 1)
+    Else
+      nPHr = Mid(cNum, 1, 2)
+    End If
+    nPMin = Mid(cNum, 3)
+  End If
+  
+  setHM = IIf(cHM = "H", nPHr, nPMin)
+End Function
+
+Public Function bblSort(arrTmp() As Variant, Optional lDesc As Boolean)
+  Dim lnoSwap As Boolean, nItem As Long, nCol As Long, arTemp() As Variant
+  Dim sortIndex As Variant: sortIndex = 1
+  ReDim arTemp(0 To UBound(arrTmp, 2))
+  Do
+  For nItem = LBound(arrTmp) To UBound(arrTmp) - 1
+    If lDesc And (arrTmp(nItem, sortIndex) < arrTmp(nItem + 1, sortIndex)) Then
+    ' sort Z -> A
+      lnoSwap = False
+      For nCol = 0 To UBound(arrTmp, 2)
+        arTemp(nCol) = arrTmp(nItem, nCol)
+        arrTmp(nItem, nCol) = arrTmp(nItem + 1, nCol)
+      Next
+    Else
+    ' sort A -> Z
+      If Not lDesc And _
+        arrTmp(nItem, sortIndex) > arrTmp(nItem, sortIndex) Then
+        lnoSwap = False
+        For nCol = 0 To UBound(arrTmp, 2)
+          arTemp(nCol) = arrTmp(nItem, nCol)
+          arrTmp(nItem, nCol) = arrTmp(nItem + 1, nCol)
+          arrTmp(nItem + 1, nCol) = arTemp(nCol)
+        Next
+      End If
+    End If
+  Next
+  Loop While Not lnoSwap
+  bblSort = arrTmp
+End Function
+
+
+Private Sub arrManage()
+'  Me.rng2Arr arrUR
+'  ReDim sArr(1, 1 To Me.ASARecs)
+'  sArr = Worksheets(Me.WkSht).Range("K1:K" & Trim(Str(Me.ASARecs))).Value
+  ' sort
+'  sArr = Me.bblSort(sArr)
+'  For i = 2 To UBound(sArr)
+'    Me.CboSrchUR.AddItem (sArr(i, 1))
+'  Next i
+
+End Sub
+
+' ========================================================================
+Public Function rng2Arr(sArr()) As Variant
+'  ReDim sArr(1, 1 To Me.ASARecs)
+'  rng2Arr = Worksheets(Me.WkSht).Range("K1:K" & Trim(Str(Me.ASARecs))).Value
+End Function
+
+
+'======================================================================
+'
+'             ========>   ALL HELP FUNCTIONS    <===========
+'
+'======================================================================
+Public Function bHtmlHelp(sHelpPath As String, Optional sTopic As String) As Boolean
+  Dim sValidHelpURL As String, sLocalHelpURL As String, sChk As String
+  
+  ' check first if help is on same folder as this App, if not go to default network folder
+  sLocalHelpURL = sHelpPath
+  sChk = sLocalHelpURL & "\csHelp\index.html"
+  If bFileExists(sChk) Then
+    sValidHelpURL = sLocalHelpURL
+    bHtmlHelp = True
+  Else
+    sChk = "G:\Theatre\RecoveryCN\AssetMgr\csHelp\index.html"
+    If bFileExists(sChk) Then
+      sValidHelpURL = "G:\Theatre\RecoveryCN\AssetMgr\csHelp\"
+      bHtmlHelp = True
+    Else
+      bHtmlHelp = False
+      Exit Function
+    End If
+  End If
+  
+  ' open specific page
+  If Len(sTopic & vbNullString) = 0 Then
+    sValidHelpURL = sValidHelpURL & "index.html"
+  Else
+    sValidHelpURL = sValidHelpURL & "\csHelp\RSTs\" & sTopic
+  End If
+  
+  ' check that Firefox is running on the system
+  If Not OpenInFirefoxNT(sValidHelpURL) Then
+    bHtmlHelp = False
+    Exit Function
+  End If
+End Function
+'=================================================================
+'  Does File Exist? (boolean)
+'  Accepts: fully-qualified path\name string
+'  Returns: boolean (True if exists)
+'===========================================
+Public Function bFileExists(cFullName As String) As Boolean
+  On Error GoTo EarlyExit
+  If Not Dir(cFullName) = vbNullString Then bFileExists = True
+
+  EarlyExit:
+  On Error GoTo 0
+  ' bFileExists = False (default is false, so superfluous statement)
+End Function
+Public Function OpenInFirefoxNT(sUrl As String) As Boolean
+  Dim pathFFox As String
+  pathFFox = "C:\Program Files (x86)\Mozilla Firefox\firefox.exe"
+  If Dir(pathFFox) = "" Then pathFFox = "C:\Program Files\Mozilla Firefox\firefox.exe"
+  If Dir(pathFFox) = "" Then OpenInFirefoxNT = False: Exit Function
+
+  Shell """" & pathFFox & """" & " -new-tab " & sUrl, vbHide
+  OpenInFirefoxNT = True
+End Function
+Public Function sHTMLError(Optional sCond As String)
+  MsgBox "Help not available. Please notify Developer.", _
+            vbCritical, "Help not Found"
+End Function
+
+
+
+
+'========================================================================
+'             LICENCE: GNU GENERAL PUBLIC LICENSE v3
+'========================================================================
+'
+'  Asset Manager is designed to facilitate device management (inventory,
+'   location-tracking, status, etc) of non-dispoasble devices used in a
+'   clinical setting such as the Operating Theatre or Post-Op Recovery.
+'   This is done through the use of an Excel Spreadsheet for data storage
+'   and VBA forms to manage that data.
+'
+'  Terms of GPL v3 licence:
+'  This program is free software: you can redistribute it and/or modify
+'   it under the terms of the GNU General Public License as published by
+'   the Free Software Foundation, either version 3 of the License, or
+'   (at your option) any later version.
+'
+'  This program is distributed in the hope that it will be useful,
+'   but WITHOUT ANY WARRANTY; without even the implied warranty of
+'   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+'   GNU General Public License for more details.
+'
+'  You should have received a copy of the GNU General Public License
+'   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+'
+'========================================================================
+
+
+'========================================================================
+' Base Form Custom Properties (was: Global Variables)
+'========================================================================
+
